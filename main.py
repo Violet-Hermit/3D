@@ -1,6 +1,3 @@
-from functools import lru_cache
-
-#import graphics as gr
 import keyboard
 import numpy as np
 import time
@@ -19,8 +16,12 @@ from tkinter import *
 # чтобы все операции могли проводится как с кортежами так и с масивами NumPy
 
 class Point:
+    points_array = []
+
     def __init__(self, x=0, y=0, z=0):
         self.coord = (x, y, z)
+        print(x,y,z)
+        Point.points_array.append(self)
 
     def add_vector_to_point(self, vector):
         point_x, point_y, point_z = self.coord
@@ -44,7 +45,11 @@ class Point:
         x, y, z = self.coord
         canvas.create_line(x, y, x + 1, y, fill="black")
 
-    def move(self, x_bias, y_bias, z_bias):
+    def move(self, point):
+        x_bias, y_bias, z_bias = point.coord
+        self.coord = (x_bias, y_bias, z_bias)
+
+    def bias(self, x_bias, y_bias, z_bias):
         x, y, z = self.coord
         self.coord = (x + x_bias, y + y_bias, z + z_bias)
 
@@ -68,7 +73,8 @@ class Vector:
     def spin_xy(self, angle):
         angle = radians(angle)
         transformation_matrix = [[cos(angle), -1 * sin(angle), 0], [sin(angle), cos(angle), 0], [0, 0, 1]]
-        return multiply_matrices(self.coord, transformation_matrix)
+        x, y, z = list(multiply_matrices(self.coord, transformation_matrix))
+        return Vector(x, y, z)
 
     def spin_yz(self, angle):
         transformation_matrix = [[1, 0, 0], [0, cos(angle), -1 * sin(angle)], [0, sin(angle), cos(angle)]]
@@ -79,10 +85,12 @@ class Vector:
         return multiply_matrices(self.coord, transformation_matrix)
 
     def do_scale(self, s0, s1, s2):
-        transformation_matrix = [[s0, 0, 0], [0, s1, 0], [0, 0, s2]]
-        return multiply_matrices(self.coord, transformation_matrix)
+        x, y, z = self.coord
+        self.coord = (x * s0, y * s1, z * s2)
+        return self
 
-    def move(self, x_bias, y_bias, z_bias):
+    def move(self, point):
+        x_bias, y_bias, z_bias = point.coord
         self.x += x_bias
         self.y += y_bias
         self.z += z_bias
@@ -99,7 +107,7 @@ def initialize_screen(wdh, hgh):
 
 
 def clearing_screen():
-    canvas.create_rectangle(0, 0, 1000, 1000, fill="white")
+    canvas.delete("all")
 
 
 # Просто умножение матриц средствами NumPy,
@@ -111,20 +119,72 @@ def multiply_matrices(mtx1, mtx2):
     result = matrix1.dot(matrix2).tolist()
     return result
 
+
+def scale_05():  # A
+    #origin = Point.points_array[0]
+    temp_vector = Vector()
+    for i in range(len(Point.points_array)):
+        temp_vector = Point.points_array[i].add_point_to_point(Point.points_array[0])
+        Point.points_array[i].move(Point.points_array[0])
+        Point.points_array[i].add_vector_to_point(temp_vector.do_scale(0.5, 0.5, 0.5))
+    redraw_screen()
+
+
+def scale_2():  # S
+    #origin = Point.points_array[0]
+    temp_vector = Vector()
+    for i in range(len(Point.points_array)):
+        temp_vector = Point.points_array[i].add_point_to_point(Point.points_array[0])
+        Point.points_array[i].move(Point.points_array[0])
+        Point.points_array[i].add_vector_to_point(temp_vector.do_scale(2, 2, 2))
+    redraw_screen()
+
+
+def roted_15_degry_xy():  # R
+    #origin = Point.points_array[0]
+    temp_vector = Vector()
+    for i in range(len(Point.points_array)):
+        temp_vector = Point.points_array[i].add_point_to_point(Point.points_array[0])
+        Point.points_array[i].move(Point.points_array[0])
+        Point.points_array[i].add_vector_to_point(temp_vector.spin_xy(15))
+    redraw_screen()
+
+
+def redraw_screen():  # D
+    clearing_screen()
+    for i in Point.points_array:
+        i.draw_point()
+
+
 # Утечка памяти происходит из-за модуля canvas, при каждой новой отрисовке жрётся память
 # Старые эллементы не удаляются поэтому память утекает тоже самое касается и остальных проектов кроме серпинского
+def handle_clicks():
+    if keyboard.is_pressed('ctrl + 1'):
+        scale_2()
+
+    if keyboard.is_pressed('ctrl + 2'):
+        redraw_screen()
+
+    if keyboard.is_pressed('ctrl + 3'):
+        roted_15_degry_xy()
+
+    if keyboard.is_pressed('ctrl + 4'):
+        scale_2()
+
 
 if __name__ == '__main__':
+    print(id(Point(0, 0, 0)) == id(Point(0, 0, 0)))  # == False, Badly
     initialize_screen(1000, 1000)
-    point = Point(5, 5, 1)
+    point = Point(0, 0, 0)
     point.draw_point()
-    points = [Point(randint(300, 700), randint(300, 700), randint(300, 700) ) for i in range(1000)]
-    for i in points:
-        i.draw_point()
-    #wnd.update()
+    points = [Point(randint(100, 200), randint(100, 200), randint(100, 200)) for i in range(10)]
+    #roted_15_degry_xy() # при каждом применении колво точек в статик масиве увеличивается в два раза
+    handle_clicks()
     while 1:
-    #clearing_screen()
-        for i in range(len(points)):
-            points[i].move(randint(-1, 1), randint(-1, 1), randint(-1, 1))
-            points[i].draw_point()
-            wnd.mainloop()
+        clearing_screen()
+        handle_clicks()
+        for i in range(len(Point.points_array)):
+            Point.points_array[i].bias(randint(-1, 1), randint(-1, 1), randint(-1, 1))
+        redraw_screen()
+        #print(len(Point.points_array))
+        wnd.update()
