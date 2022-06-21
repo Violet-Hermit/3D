@@ -1,8 +1,7 @@
+import time
+
 import keyboard
 import numpy as np
-import time
-import sys
-
 from math import *
 from random import randint
 from tkinter import *
@@ -15,35 +14,41 @@ from tkinter import *
 # Нужно переделывать все при помощи NumPy, но для этого нужно реализовать перегрузку конструктора,
 # чтобы все операции могли проводится как с кортежами так и с масивами NumPy
 
+
 class Point:
     points_array = []
 
-    def __init__(self, x=0, y=0, z=0):
+    def __init__(self, x=0, y=0, z=0, set_to_static=True):
         self.coord = (x, y, z)
-        print(x,y,z)
         Point.points_array.append(self)
+
+    def __repr__(self):
+        return str(self.coord)
 
     def add_vector_to_point(self, vector):
         point_x, point_y, point_z = self.coord
         vector_x, vector_y, vector_z = vector.coord
         result_point = Point(point_x + vector_x, point_y + vector_y, point_z + vector_z)
         return result_point
+        # return tuple(point_x + vector_x, point_y + vector_y, point_z + vector_z)
 
     def subtract_vector_from_point(self, vector):
         point_x, point_y, point_z = self.coord
         vector_x, vector_y, vector_z = vector.coord
         result_point = Point(point_x - vector_x, point_y - vector_y, point_z - vector_z)
         return result_point
+        # return tuple(point_x - vector_x, point_y - vector_y, point_z - vector_z)
 
     def add_point_to_point(self, point):
         point1_x, point1_y, point1_z = point.coord
         point2_x, point2_y, point2_z = self.coord
         result_vector = Vector(point2_x - point1_x, point2_y - point1_y, point2_z - point1_z)
         return result_vector
+        # return tuple(point2_x - point1_x, point2_y - point1_y, point2_z - point1_z)
 
     def draw_point(self):
         x, y, z = self.coord
-        canvas.create_line(x, y, x + 1, y, fill="black")
+        canvas.create_line(x, y, x+1, y, fill="black")
 
     def move(self, point):
         x_bias, y_bias, z_bias = point.coord
@@ -63,18 +68,21 @@ class Vector:
         vector2_x, vector2_y, vector2_z = vector.coord
         result_vector = Vector(vector1_x + vector2_x, vector1_y + vector2_y, vector1_y + vector2_z)
         return result_vector
+        # return tuple(vector1_x + vector2_x, vector1_y + vector2_y, vector1_y + vector2_z)
 
     def subtract_vector_from_vector(self, vector):
         vector1_x, vector1_y, vector1_z = self.coord
         vector2_x, vector2_y, vector2_z = vector.coord
         result_vector = Vector(vector1_x - vector2_x, vector1_y - vector2_y, vector1_y - vector2_z)
         return result_vector
+        # return tuple((vector1_x - vector2_x, vector1_y - vector2_y, vector1_y - vector2_z))
 
     def spin_xy(self, angle):
         angle = radians(angle)
         transformation_matrix = [[cos(angle), -1 * sin(angle), 0], [sin(angle), cos(angle), 0], [0, 0, 1]]
         x, y, z = list(multiply_matrices(self.coord, transformation_matrix))
         return Vector(x, y, z)
+        # return tuple(multiply_matrices(self.coord, transformation_matrix))
 
     def spin_yz(self, angle):
         transformation_matrix = [[1, 0, 0], [0, cos(angle), -1 * sin(angle)], [0, sin(angle), cos(angle)]]
@@ -96,6 +104,19 @@ class Vector:
         self.z += z_bias
 
 
+class Camera:
+    def __init__(self, max_x, min_x, max_y, min_y, max_z, min_z):
+        self.max_x = max_x
+        self.min_x = min_x
+        self.max_y = max_y
+        self.min_y = min_y
+        self.max_z = max_z
+        self.min_z = min_z
+
+    def draw_scene(self):
+        pass
+
+
 # Глобальные переменные конечно плохо, но это вроде делает код чище
 def initialize_screen(wdh, hgh):
     global wnd
@@ -103,7 +124,6 @@ def initialize_screen(wdh, hgh):
     wnd = Tk()
     canvas = Canvas(wnd, width=wdh, height=hgh)
     canvas.pack()
-    colors = "black"
 
 
 def clearing_screen():
@@ -121,32 +141,31 @@ def multiply_matrices(mtx1, mtx2):
 
 
 def scale_05():  # A
-    #origin = Point.points_array[0]
+    origin = Point.points_array[0]
     temp_vector = Vector()
     for i in range(len(Point.points_array)):
-        temp_vector = Point.points_array[i].add_point_to_point(Point.points_array[0])
-        Point.points_array[i].move(Point.points_array[0])
-        Point.points_array[i].add_vector_to_point(temp_vector.do_scale(0.5, 0.5, 0.5))
+        temp_vector = Vector(*Point.points_array[i].coord)
+        Point.points_array[i].coord = temp_vector.do_scale(0.5, 0.5, 0.5).coord
     redraw_screen()
 
 
 def scale_2():  # S
-    #origin = Point.points_array[0]
+    origin = Point.points_array[0]
     temp_vector = Vector()
     for i in range(len(Point.points_array)):
-        temp_vector = Point.points_array[i].add_point_to_point(Point.points_array[0])
-        Point.points_array[i].move(Point.points_array[0])
-        Point.points_array[i].add_vector_to_point(temp_vector.do_scale(2, 2, 2))
+        temp_vector = Vector(*Point.points_array[i].coord)
+        Point.points_array[i].coord = temp_vector.do_scale(2, 2, 2).coord
     redraw_screen()
 
 
-def roted_15_degry_xy():  # R
-    #origin = Point.points_array[0]
+# код переделан, вместо описаных операторов пришлось использовать костыль что плохо, но это ускоряет програму и убирает
+# геометрическое увеличение кол-ва точек
+def roted_1_degree_xy():  # R
+    origin = Point.points_array[0]
     temp_vector = Vector()
-    for i in range(len(Point.points_array)):
-        temp_vector = Point.points_array[i].add_point_to_point(Point.points_array[0])
-        Point.points_array[i].move(Point.points_array[0])
-        Point.points_array[i].add_vector_to_point(temp_vector.spin_xy(15))
+    for i in range(1, len(Point.points_array)):
+        temp_vector = Vector(*Point.points_array[i].coord)
+        Point.points_array[i].coord = temp_vector.spin_xy(1).coord
     redraw_screen()
 
 
@@ -163,28 +182,37 @@ def handle_clicks():
         scale_2()
 
     if keyboard.is_pressed('ctrl + 2'):
-        redraw_screen()
+        scale_05()
 
     if keyboard.is_pressed('ctrl + 3'):
-        roted_15_degry_xy()
+        roted_1_degree_xy()
 
     if keyboard.is_pressed('ctrl + 4'):
-        scale_2()
+        redraw_screen()
 
 
 if __name__ == '__main__':
-    print(id(Point(0, 0, 0)) == id(Point(0, 0, 0)))  # == False, Badly
     initialize_screen(1000, 1000)
     point = Point(0, 0, 0)
-    point.draw_point()
-    points = [Point(randint(100, 200), randint(100, 200), randint(100, 200)) for i in range(10)]
-    #roted_15_degry_xy() # при каждом применении колво точек в статик масиве увеличивается в два раза
+    print(*Point.points_array)
+    points = [Point(randint(130, 150), randint(130, 150), 0) for i in range(50)]
+    # roted_15_degree_xy()
+    # roted_15_degree_xy()  # при каждом применении кол-во точек в статик масиве увеличивается в два раза
+    # то происходит потому что в каждой операции участвует оператор из класса Point который возвращает новый экземпляр
+    # класса который добавляется в статик масив или хз как он тут называется, идея создать нейтральную точку которая
+    # используется только в операциях, но результатом будет ссылка которая перестанет хранить нужные данные уже после
+    # вызова следующего метода
     handle_clicks()
+    time2 = 0
+    time1 = 0
     while 1:
-        clearing_screen()
+        flag = True if time2 - time1 <= 0.05 else False
+
+
+        time.sleep(0.05 - (time2 - time1) * flag)
+        time1 = time.time()
         handle_clicks()
-        for i in range(len(Point.points_array)):
-            Point.points_array[i].bias(randint(-1, 1), randint(-1, 1), randint(-1, 1))
         redraw_screen()
-        #print(len(Point.points_array))
+        # print(len(Point.points_array))
         wnd.update()
+        time2 = time.time()
